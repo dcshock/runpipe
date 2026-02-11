@@ -302,9 +302,10 @@ type Pipeline struct {
 }
 
 // Run executes the pipeline: runs the source (if non-nil), then runs each stage in order.
-// Returns the last stage's output or the first error. Use RunWithInput when the initial
-// input is supplied by a Sequence.
-func (p *Pipeline) Run(ctx context.Context) (interface{}, error) {
+// Returns the last stage's output or the first error. Pass opts to use an Observer (e.g. for
+// persistence or when stages use Park/Retry). Use RunWithInput when the initial input is
+// supplied by a Sequence.
+func (p *Pipeline) Run(ctx context.Context, opts *RunOptions) (interface{}, error) {
 	var out interface{}
 	var err error
 	if p.Source != nil {
@@ -313,7 +314,7 @@ func (p *Pipeline) Run(ctx context.Context) (interface{}, error) {
 			return nil, err
 		}
 	}
-	return p.RunWithInput(ctx, out, nil)
+	return p.RunWithInput(ctx, out, opts)
 }
 
 // RunWithInput runs the pipeline's stages starting with the given input. The payload

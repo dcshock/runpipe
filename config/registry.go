@@ -2,6 +2,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -55,4 +56,34 @@ func (r *Registry) Names() []string {
 		names = append(names, n)
 	}
 	return names
+}
+
+// SourceRegistry maps source names to pipeline sources. Safe for concurrent use.
+// Use with PipelineConfig.Source and BuildOptions.SourceRegistry so config can reference a source by name.
+type SourceRegistry struct {
+	mu      sync.RWMutex
+	sources map[string]func(context.Context) (interface{}, error)
+}
+
+// NewSourceRegistry returns an empty source registry.
+func NewSourceRegistry() *SourceRegistry {
+	return &SourceRegistry{sources: make(map[string]func(context.Context) (interface{}, error))}
+}
+
+// Register adds a source under the given name. Overwrites any existing registration.
+func (r *SourceRegistry) Register(name string, source func(context.Context) (interface{}, error)) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.sources == nil {
+		r.sources = make(map[string]func(context.Context) (interface{}, error))
+	}
+	r.sources[name] = source
+}
+
+// Get returns the source for name, or nil and false if not found.
+func (r *SourceRegistry) Get(name string) (func(context.Context) (interface{}, error), bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	s, ok := r.sources[name]
+	return s, ok
 }

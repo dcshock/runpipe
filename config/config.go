@@ -10,6 +10,7 @@ import (
 // PipelineConfig is the root structure for a pipeline definition (e.g. from YAML).
 type PipelineConfig struct {
 	Name   string     `yaml:"name"`
+	Source string     `yaml:"source"` // optional: name of a source registered in BuildOptions.SourceRegistry
 	Stages []StageRef `yaml:"stages"`
 }
 
@@ -68,9 +69,33 @@ func (d *Duration) UnmarshalYAML(value *yaml.Node) error {
 // Duration returns the standard time.Duration.
 func (d Duration) Duration() time.Duration { return time.Duration(d) }
 
-// ParsePipelineConfig parses YAML bytes into a PipelineConfig.
+// ParsePipelineConfig parses YAML bytes into a single PipelineConfig.
 func ParsePipelineConfig(data []byte) (*PipelineConfig, error) {
 	var cfg PipelineConfig
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+// MultiPipelineConfig is the root structure for a file that defines multiple pipelines.
+// Top-level key is "pipelines"; each value is a pipeline (name + stages).
+type MultiPipelineConfig struct {
+	Pipelines map[string]PipelineConfig `yaml:"pipelines"`
+}
+
+// ParseMultiPipelineConfig parses YAML bytes that contain a "pipelines" map from name to pipeline config.
+// Example YAML:
+//
+//	pipelines:
+//	  ingest:
+//	    name: ingest
+//	    stages: [fetch, parse]
+//	  notify:
+//	    name: notify
+//	    stages: [validate, send]
+func ParseMultiPipelineConfig(data []byte) (*MultiPipelineConfig, error) {
+	var cfg MultiPipelineConfig
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}

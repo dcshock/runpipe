@@ -38,6 +38,51 @@ stages:
 
 Durations use Go duration strings (`60s`, `5m`, etc.).
 
+### Optional source
+
+You can reference a **source** by name so the built pipeline gets an initial input when you call `Run(ctx, opts)`:
+
+```yaml
+name: ingest
+source: queue-poller
+stages: [fetch, parse]
+```
+
+Register the source in a **SourceRegistry** and pass it in **BuildOptions.SourceRegistry**:
+
+```go
+sources := config.NewSourceRegistry()
+sources.Register("queue-poller", myQueuePollerFunc)
+opts := &config.BuildOptions{SourceRegistry: sources}
+p, err := config.BuildPipeline(reg, cfg, opts)
+// p.Source is set to myQueuePollerFunc
+```
+
+### Multi-pipeline YAML
+
+One file can define multiple pipelines under a top-level `pipelines` map:
+
+```yaml
+pipelines:
+  ingest:
+    name: ingest
+    stages: [fetch, parse]
+  notify:
+    stages: [validate, send]
+```
+
+Use **ParseMultiPipelineConfig** and **BuildAllPipelines**:
+
+```go
+multi, err := config.ParseMultiPipelineConfig(yamlBytes)
+if err != nil { ... }
+pipelines, err := config.BuildAllPipelines(reg, multi, opts)
+if err != nil { ... }
+// pipelines["ingest"], pipelines["notify"] are *pipeline.Pipeline
+```
+
+If a pipeline entry omits `name`, the map key is used as the pipeline name.
+
 ## Building a pipeline
 
 ```go

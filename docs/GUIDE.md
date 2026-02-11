@@ -20,7 +20,7 @@ This guide explains how to implement pipelines, stages, observers, park/resume, 
 
 ## Concepts
 
-- **Pipeline**: A linear chain of **stages**. Input flows through each stage in order; each stage’s output is the next stage’s input. Optionally, a pipeline has a **Source** that produces the initial input when you call `Run(ctx)`.
+- **Pipeline**: A linear chain of **stages**. Input flows through each stage in order; each stage’s output is the next stage’s input. Optionally, a pipeline has a **Source** that produces the initial input when you call `Run(ctx, opts)`.
 - **Stage**: A function `(ctx, input) -> (output, error)`. Stages can transform data, validate it, call external services, or pause the run (park) for later.
 - **Observer**: Optional hooks (before/after pipeline, before/after each stage) for persistence, logging, and resume. Required for **Park** and **Retry**.
 - **Park**: A stage can “park” the run: persist state and return `ErrParked`. A separate job later **resumes** the run from the next stage (or the same stage for retry).
@@ -95,13 +95,13 @@ type Pipeline struct {
 ```
 
 - **Name**: Identifies the pipeline (for observers and resume).
-- **Source**: Optional. Used only when you call `Run(ctx)` with no input; ignored when using `RunWithInput` or when the pipeline is part of a Sequence.
+- **Source**: Optional. Used only when you call `Run(ctx, opts)`; ignored when using `RunWithInput` or when the pipeline is part of a Sequence.
 - **Stages**: Ordered list of stages.
 
 ### Run vs RunWithInput
 
-- **Run(ctx)**  
-  Runs the **Source** (if set), then runs all stages with that output. Use for standalone pipelines that produce their own input.
+- **Run(ctx, opts)**  
+  Runs the **Source** (if set), then runs all stages with that output. Pass `opts` (e.g. `RunOptions{Observer: obs}`) for persistence or when stages use Park/Retry. Use for standalone pipelines that produce their own input.
 
 - **RunWithInput(ctx, input, opts)**  
   Skips Source and runs stages starting with `input`. Use when:
@@ -202,6 +202,15 @@ result, err := remaining.RunWithInput(ctx, saved.InputForNextStage, &pipeline.Ru
 ```
 
 The optional **observer** package provides **DBObserver**, **ParkedRunStore**, and **Resumer** for Postgres-backed park and resume.
+
+### Serialization and RunState
+
+**RunState** and **ParkedRun** are persisted for resume (and for retry). Anything you store in **InputForNextStage** (or pass as payload when using an observer) should be **JSON-serializable** if you persist to a DB: the observer typically marshals it to JSON for storage and unmarshals on resume. On resume, `json.Unmarshal` into `interface{}` yields `map[string]interface{}` for objects and `[]interface{}` for arrays, not concrete types like `[]string`. Either:
+
+- Use a **coerce stage** after a park (or at the start of a resumed pipeline) that converts `[]interface{}` / `map[string]interface{}` back to your types, or  
+- Persist with a type hint and unmarshal into the correct type when loading.
+
+Keep **RunID**, **PipelineName**, **NextStageIndex**, and **ResumeAt** as stored; they are primitives or already defined by the schema.
 
 ---
 

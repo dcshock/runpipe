@@ -110,7 +110,7 @@ func TestPipeline_Run_WithSource(t *testing.T) {
 			Transform(func(ctx context.Context, n int) (int, error) { return n + 1, nil }),
 		},
 	}
-	out, err := p.Run(ctx)
+	out, err := p.Run(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
