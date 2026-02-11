@@ -22,6 +22,7 @@ Optional packages:
 ```bash
 go get github.com/dcshock/runpipe/observer   # Postgres observer, park, resume
 go get github.com/dcshock/runpipe/config     # Stage registry + YAML pipeline config
+go get github.com/dcshock/runpipe/httpstages # HTTP GET, ParseJSON, Expect stages
 ```
 
 ## Quick example
@@ -60,6 +61,7 @@ func main() {
 - **pipeline/** — Core pipeline, stages, retry, park; no DB dependency.
 - **observer/** — Optional Postgres observer (DBObserver, ParkedRunStore, Resumer); uses sqlc and pgx.
 - **config/** — Optional stage registry and human-readable pipeline config (YAML); stages by name with `retry: exponential`, `timeout: 60s`, etc.
+- **httpstages/** — Optional stages for HTTP GET, JSON parse, and Expect/verify; run GET → ParseJSON → Expect in a pipeline.
 - **examples/with-db/** — Example pipeline with stdlib stages, DBObserver, park, and resume; tests use testcontainers Postgres.
 
 ## Tests
