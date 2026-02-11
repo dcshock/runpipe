@@ -1,0 +1,14 @@
+---
+description: Runpipe repo layout and conventions for pipeline, config, observer, httpstages
+alwaysApply: true
+---
+
+# Runpipe codebase
+
+- **Core**: `pipeline/` — Pipeline, Stage, Run/RunWithInput, Observer, Park, Retry, MultiObserver, stdlib stages. Stage = `func(ctx, input) (interface{}, error)`.
+- **Optional modules** (own go.mod, replace runpipe => ..): `config/` (registry + YAML), `observer/` (Postgres), `httpstages/` (GET, ParseJSON, Expect), `examples/with-db/`.
+- **Config**: Stages registered by name in `config.Registry`; YAML references names. Build with `config.BuildPipeline(reg, cfg, opts)`. URL/predicates are set in Go when registering.
+- **Docs**: `README.md`, `docs/GUIDE.md` (full guide), `config/README.md`, `httpstages/README.md`. **AGENTS.md** at repo root is the AI orientation: layout, where to look, conventions, how to add things.
+- **Tests**: `go test ./...` (root); optional modules run tests from their dir. Observer/examples need Docker for testcontainers.
+
+When adding stages or options, add tests and update the relevant README or GUIDE.

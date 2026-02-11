@@ -53,7 +53,8 @@ func main() {
 
 ## Documentation
 
-- **[Implementation guide (docs/GUIDE.md)](docs/GUIDE.md)** — How to implement pipelines, stages, observers, park/resume, retry, sequences, and stdlib stages, with examples. Start with the [quick example](#quick-example) above, then follow the guide for [stages](docs/GUIDE.md#implementing-stages), [Observer](docs/GUIDE.md#observer-and-runoptions), [park/resume](docs/GUIDE.md#park-and-resume), or [config](docs/GUIDE.md#human-readable-config-config-package) as needed.
+- **[Implementation guide (docs/GUIDE.md)](docs/GUIDE.md)** — How to implement pipelines, stages, observers, park/resume, retry, sequences, and stdlib stages, with examples.
+- **[AGENTS.md](AGENTS.md)** — Orientation for AI agents and contributors: layout, conventions, where to look, how to add stages or modules. Start with the [quick example](#quick-example) above, then follow the guide for [stages](docs/GUIDE.md#implementing-stages), [Observer](docs/GUIDE.md#observer-and-runoptions), [park/resume](docs/GUIDE.md#park-and-resume), or [config](docs/GUIDE.md#human-readable-config-config-package) as needed.
 - **Package docs**: [pipeline](https://pkg.go.dev/github.com/dcshock/runpipe/pipeline), [observer](https://pkg.go.dev/github.com/dcshock/runpipe/observer), [config](https://pkg.go.dev/github.com/dcshock/runpipe/config) (optional).
 
 ## Project layout
