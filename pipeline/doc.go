@@ -1,7 +1,7 @@
 // Package pipeline provides single-value pipeline and sequence types. A Pipeline
 // runs stages in order (optionally with its own Source for standalone use); each
 // stage's output is the next stage's input. A Sequence runs multiple pipelines
-// in order with and semantics: the caller's payload is passed to every pipeline
+// in order with the same payload and semantics: the caller's payload is passed to every pipeline
 // (payload → pipeline1, payload → pipeline2, …), not piped between pipelines.
 //
 // Optional pre/post hooks (Observer) let you persist run state to a DB for monitoring

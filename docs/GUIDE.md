@@ -1,6 +1,6 @@
 # Runpipe: Implementation Guide
 
-This guide explains how to implement pipelines, stages, observers, park/resume, and retry in runpipe.
+This guide explains how to implement pipelines, stages, observers, park/resume, and retry in runpipe. Read the sections in order to go from concepts to a working pipeline; use the table of contents to jump to a topic.
 
 ---
 
@@ -69,14 +69,14 @@ The pipeline still passes `interface{}` between stages; Transform does the asser
 
 ### Using stdlib stages
 
-The `pipeline` package provides reusable stages (see [Stdlib stages](#stdlib-stages)): **Identity**, **Tap**, **Validate**, **Constant**, **WithTimeout**, **MapSlice**, **FilterSlice**. Compose them with your own stages:
+The `pipeline` package provides reusable stages (see [Stdlib stages](#stdlib-stages)): **Identity**, **Tap**, **Validate**, **Constant**, **WithTimeout**, **MapSlice**, **FilterSlice**, **Transform**. Compose them with your own stages:
 
 ```go
 stages := []pipeline.Stage{
     pipeline.Validate[[]string](func(s []string) bool { return len(s) > 0 }, "non-empty"),
     pipeline.Tap(logInput),
     myCustomStage,
-    pipeline.MapSlice(strings.ToUpper),
+    pipeline.MapSlice(func(ctx context.Context, s string) (string, error) { return strings.ToUpper(s), nil }),
 }
 ```
 
@@ -282,8 +282,9 @@ With an observer, stage indices are **global** across all pipelines (0, 1, 2, �
 | **WithTimeout(inner, timeout)** | Run inner with a deadline. |
 | **MapSlice(convert)** | `[]T` → `[]U` via `ConvertFunc[T,U]` per element. |
 | **FilterSlice(keep)** | Keep elements where `keep(v)` is true. |
+| **Transform(convert)** | Typed conversion `A` → `B` via `ConvertFunc[A,B]`; does type assertion so you avoid `interface{}` in your func. |
 
-See **pipeline/stages.go** and **pipeline/stages_test.go** for details.
+See **pipeline/stages.go**, **pipeline/pipeline.go** (Transform), and **pipeline/stages_test.go** for details.
 
 ---
 
@@ -304,7 +305,7 @@ stages:
 ```
 
 - Register stages with `registry.Register("fetch", fetchStage)` etc.
-- Parse YAML with `config.ParsePipelineConfig(data)`.
+- Parse YAML with `config.ParsePipelineConfig(data)` (or `ParseMultiPipelineConfig` for multiple pipelines).
 - Build with `config.BuildPipeline(registry, cfg, opts)`; set `opts.RetryPersist` when any stage has `retry`.
 
 See **config/README.md** and **config/example.yaml**.

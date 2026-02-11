@@ -4,7 +4,7 @@ Runpipe is a Go library for building **single-value pipelines**: linear chains o
 
 ## Features
 
-- **Pipeline & Stage**: Compose stages `(ctx, input) -> (output, error)` in order; run with `Run(ctx)` or `RunWithInput(ctx, payload, opts)`.
+- **Pipeline & Stage**: Compose stages `(ctx, input) -> (output, error)` in order; run with `Run(ctx, opts)` or `RunWithInput(ctx, payload, opts)`.
 - **Observer**: Optional before/after hooks for the pipeline and each stage (persistence, logging, resume).
 - **Park & Resume**: Stages can “park” a run (persist state, return `ErrParked`); a job later resumes from the next stage (or same stage for retry).
 - **Retry**: Wrap a stage so retryable failures park and are re-run later; use **exponential backoff** via `ExponentialBackoffPolicy` and `ExponentialBackoffPersist`.
@@ -52,8 +52,8 @@ func main() {
 
 ## Documentation
 
-- **[Implementation guide (docs/GUIDE.md)](docs/GUIDE.md)** — How to implement pipelines, stages, observers, park/resume, retry, sequences, and stdlib stages, with examples.
-- **Package docs**: [pipeline](https://pkg.go.dev/github.com/dcshock/runpipe/pipeline), [observer](https://pkg.go.dev/github.com/dcshock/runpipe/observer) (optional).
+- **[Implementation guide (docs/GUIDE.md)](docs/GUIDE.md)** — How to implement pipelines, stages, observers, park/resume, retry, sequences, and stdlib stages, with examples. Start with the [quick example](#quick-example) above, then follow the guide for [stages](docs/GUIDE.md#implementing-stages), [Observer](docs/GUIDE.md#observer-and-runoptions), [park/resume](docs/GUIDE.md#park-and-resume), or [config](docs/GUIDE.md#human-readable-config-config-package) as needed.
+- **Package docs**: [pipeline](https://pkg.go.dev/github.com/dcshock/runpipe/pipeline), [observer](https://pkg.go.dev/github.com/dcshock/runpipe/observer), [config](https://pkg.go.dev/github.com/dcshock/runpipe/config) (optional).
 
 ## Project layout
 
