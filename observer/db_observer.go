@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dcshock/runpipe/dbobserver/repository"
+	"github.com/dcshock/runpipe/observer/repository"
 	"github.com/dcshock/runpipe/pipeline"
 	"github.com/jackc/pgx/v5/pgtype"
 )

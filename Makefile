@@ -31,9 +31,9 @@ fmt:
 lint:
 	go vet ./...
 
-# Generate sqlc code for dbobserver (requires sqlc: go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest)
+# Generate sqlc code for observer (requires sqlc: go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest)
 sqlc-generate:
-	cd dbobserver && sqlc generate
+	cd observer && sqlc generate
 
 # Tidy and verify dependencies
 deps:
@@ -57,6 +57,6 @@ help:
 	@echo "  fmt           - go fmt ./..."
 	@echo "  lint          - go vet ./..."
 	@echo "  deps          - go mod tidy && go mod verify"
-	@echo "  sqlc-generate - regenerate internal/db/repository from schema and queries"
+	@echo "  sqlc-generate - regenerate observer/repository from schema and queries"
 	@echo "  clean         - remove cache and coverage artifacts"
 	@echo "  help          - show this help"

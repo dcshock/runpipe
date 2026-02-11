@@ -1,5 +1,5 @@
 -- Pipeline observer tables for runpipe (DBObserver, ParkedRunStore, Resumer).
--- Apply with: psql $DATABASE_URL -f dbobserver/internal/db/migrations/001_pipeline_tables.up.sql
+-- Apply with: psql $DATABASE_URL -f observer/internal/db/migrations/001_pipeline_tables.up.sql
 
 -- Pipeline run: one row per pipeline execution (standalone or from a sequence).
 CREATE TABLE IF NOT EXISTS pipeline_run (

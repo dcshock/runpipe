@@ -38,6 +38,92 @@ type RetryPolicy struct {
 	ShouldRetry func(err error) bool
 }
 
+// ExponentialBackoffPolicy configures exponential backoff for Retry. Use with
+// ExponentialBackoffPersist so ResumeAt = Initial * Multiplier^attempt, capped at Cap.
+// MaxAttempts is the maximum number of retries (0 = no limit; enforce in persist).
+// ShouldRetry works like RetryPolicy.ShouldRetry.
+type ExponentialBackoffPolicy struct {
+	Initial     time.Duration // delay after first failure
+	Multiplier  float64       // factor per attempt (e.g. 2 for doubling); must be >= 1
+	Cap         time.Duration // maximum delay (0 = no cap)
+	MaxAttempts int           // max retries; 0 = no limit
+	ShouldRetry func(err error) bool
+}
+
+// AttemptStore gets and sets retry attempt count per run_id. Used by ExponentialBackoffPersist.
+// For production, use a DB-backed store; for tests, use a sync.Map or in-memory map.
+type AttemptStore interface {
+	GetAttempt(ctx context.Context, runID string) (int, error)
+	SetAttempt(ctx context.Context, runID string, attempt int) error
+}
+
+// ExponentialBackoffPersist returns a ParkPersistWithTime that applies exponential backoff:
+// delay = Initial * Multiplier^attempt, capped at Cap. It uses store to get/increment
+// attempt per run_id. If policy.MaxAttempts > 0 and attempt >= MaxAttempts, persist
+// returns an error so the run fails instead of parking again. Use with Retry and
+// RetryPolicy{Backoff: 0, ShouldRetry: policy.ShouldRetry}; the wrapper overwrites ResumeAt.
+func ExponentialBackoffPersist(policy ExponentialBackoffPolicy, store AttemptStore, base ParkPersistWithTime) ParkPersistWithTime {
+	mult := policy.Multiplier
+	if mult < 1 {
+		mult = 1
+	}
+	return func(ctx context.Context, parked ParkedRun) error {
+		attempt, err := store.GetAttempt(ctx, parked.RunID)
+		if err != nil {
+			return err
+		}
+		if policy.MaxAttempts > 0 && attempt >= policy.MaxAttempts {
+			return fmt.Errorf("max retry attempts exceeded (%d)", policy.MaxAttempts)
+		}
+		delay := policy.Initial
+		for i := 0; i < attempt; i++ {
+			delay = time.Duration(float64(delay) * mult)
+			if policy.Cap > 0 && delay > policy.Cap {
+				delay = policy.Cap
+				break
+			}
+		}
+		parked.ResumeAt = time.Now().Add(delay)
+		if err := store.SetAttempt(ctx, parked.RunID, attempt+1); err != nil {
+			return err
+		}
+		return base(ctx, parked)
+	}
+}
+
+// RetryPolicyFromExponential returns a RetryPolicy for use with Retry when using
+// ExponentialBackoffPersist. Backoff is set to policy.Initial (overwritten by the persist wrapper).
+func RetryPolicyFromExponential(policy ExponentialBackoffPolicy) RetryPolicy {
+	return RetryPolicy{
+		MaxAttempts: policy.MaxAttempts,
+		Backoff:     policy.Initial,
+		ShouldRetry: policy.ShouldRetry,
+	}
+}
+
+// MemoryAttemptStore is an in-memory AttemptStore for tests or single-process use.
+// Not safe for concurrent use by multiple runners resuming the same run_id.
+type MemoryAttemptStore struct {
+	attempts map[string]int
+}
+
+// NewMemoryAttemptStore returns an in-memory store. For concurrent or multi-process
+// use, implement AttemptStore with a DB.
+func NewMemoryAttemptStore() *MemoryAttemptStore {
+	return &MemoryAttemptStore{attempts: make(map[string]int)}
+}
+
+// GetAttempt implements AttemptStore.
+func (m *MemoryAttemptStore) GetAttempt(ctx context.Context, runID string) (int, error) {
+	return m.attempts[runID], nil
+}
+
+// SetAttempt implements AttemptStore.
+func (m *MemoryAttemptStore) SetAttempt(ctx context.Context, runID string, attempt int) error {
+	m.attempts[runID] = attempt
+	return nil
+}
+
 // Retryable marks err as retryable. Use with RetryPolicy.ShouldRetry so only
 // these errors trigger a retry (e.g. transient failures), not permanent ones.
 type Retryable struct{ Err error }

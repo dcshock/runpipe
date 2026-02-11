@@ -1,4 +1,4 @@
--- Pipeline observer tables (same as dbobserver/internal/db/migrations/001_pipeline_tables.up.sql).
+-- Pipeline observer tables (same as observer/internal/db/migrations/001_pipeline_tables.up.sql).
 CREATE TABLE IF NOT EXISTS pipeline_run (
     run_id   TEXT PRIMARY KEY,
     name     TEXT NOT NULL,

@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dcshock/runpipe/dbobserver"
-	"github.com/dcshock/runpipe/dbobserver/repository"
+	"github.com/dcshock/runpipe/observer"
+	"github.com/dcshock/runpipe/observer/repository"
 	"github.com/dcshock/runpipe/pipeline"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"

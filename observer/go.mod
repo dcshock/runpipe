@@ -1,4 +1,4 @@
-module github.com/dcshock/runpipe/dbobserver
+module github.com/dcshock/runpipe/observer
 
 go 1.24.0
 

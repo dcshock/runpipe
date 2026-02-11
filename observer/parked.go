@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dcshock/runpipe/dbobserver/repository"
+	"github.com/dcshock/runpipe/observer/repository"
 	"github.com/dcshock/runpipe/pipeline"
 )
 
