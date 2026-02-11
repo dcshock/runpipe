@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/provenance-io/hastra-pulse/pipeline"
+	"github.com/dcshock/runpipe/pipeline"
 )
 
 // Example: simulate `ls` | `grep pattern`
