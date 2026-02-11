@@ -188,6 +188,59 @@ type Observer interface {
 	AfterStage(ctx context.Context, runID string, stageIndex int, input, output interface{}, stageErr error, duration time.Duration) error
 }
 
+// MultiObserver returns an Observer that calls each of the given observers in order.
+// Every observer is invoked for each hook; the first non-nil error from any observer
+// is returned to the pipeline (so the run may abort), but all observers still run
+// (e.g. logging and metrics both see the event). Use this to combine a logging
+// observer, a timing/metrics observer, and a persistence observer.
+func MultiObserver(observers ...Observer) Observer {
+	return &multiObserver{observers: observers}
+}
+
+type multiObserver struct {
+	observers []Observer
+}
+
+func (m *multiObserver) BeforePipeline(ctx context.Context, runID, name string, payload interface{}) error {
+	var first error
+	for _, o := range m.observers {
+		if err := o.BeforePipeline(ctx, runID, name, payload); err != nil && first == nil {
+			first = err
+		}
+	}
+	return first
+}
+
+func (m *multiObserver) AfterPipeline(ctx context.Context, runID string, result interface{}, err error) error {
+	var first error
+	for _, o := range m.observers {
+		if e := o.AfterPipeline(ctx, runID, result, err); e != nil && first == nil {
+			first = e
+		}
+	}
+	return first
+}
+
+func (m *multiObserver) BeforeStage(ctx context.Context, runID string, stageIndex int, input interface{}) error {
+	var first error
+	for _, o := range m.observers {
+		if err := o.BeforeStage(ctx, runID, stageIndex, input); err != nil && first == nil {
+			first = err
+		}
+	}
+	return first
+}
+
+func (m *multiObserver) AfterStage(ctx context.Context, runID string, stageIndex int, input, output interface{}, stageErr error, duration time.Duration) error {
+	var first error
+	for _, o := range m.observers {
+		if err := o.AfterStage(ctx, runID, stageIndex, input, output, stageErr, duration); err != nil && first == nil {
+			first = err
+		}
+	}
+	return first
+}
+
 // RunOptions is optional and used to attach an Observer and optional RunID.
 // If Observer is set and RunID is empty, a new UUID is generated for the run.
 // StageOffset is added to each stage index when calling the Observer (use when

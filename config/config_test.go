@@ -290,6 +290,90 @@ func TestBuildPipeline_Retry_EndToEnd(t *testing.T) {
 	}
 }
 
+func TestBuildObserver_MultipleObservers(t *testing.T) {
+	var logCalls, metricsCalls int
+	logObs := &countingObserver{count: &logCalls}
+	metricsObs := &countingObserver{count: &metricsCalls}
+	obsReg := NewObserverRegistry()
+	obsReg.Register("logging", logObs)
+	obsReg.Register("metrics", metricsObs)
+
+	cfg := &PipelineConfig{
+		Name:      "observed",
+		Observers: []string{"logging", "metrics"},
+		Stages:    []StageRef{{Name: "id"}},
+	}
+	reg := NewRegistry()
+	reg.Register("id", pipeline.Identity())
+	opts := &BuildOptions{ObserverRegistry: obsReg}
+	obs, err := BuildObserver(cfg, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if obs == nil {
+		t.Fatal("BuildObserver should return MultiObserver when Observers and ObserverRegistry are set")
+	}
+	p, err := BuildPipeline(reg, cfg, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = p.RunWithInput(context.Background(), 1, &pipeline.RunOptions{Observer: obs})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// One pipeline run: BeforePipeline, BeforeStage, AfterStage, AfterPipeline = 4 per observer
+	if logCalls != 4 {
+		t.Errorf("logging observer: got %d calls, want 4", logCalls)
+	}
+	if metricsCalls != 4 {
+		t.Errorf("metrics observer: got %d calls, want 4", metricsCalls)
+	}
+}
+
+func TestBuildObserver_EmptyReturnsNil(t *testing.T) {
+	obsReg := NewObserverRegistry()
+	obsReg.Register("only", &mockObserver{})
+	cfg := &PipelineConfig{Name: "x", Stages: []StageRef{}}
+	opts := &BuildOptions{ObserverRegistry: obsReg}
+	obs, err := BuildObserver(cfg, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if obs != nil {
+		t.Error("BuildObserver with no Observers in config should return nil observer")
+	}
+}
+
+func TestBuildObserver_UnknownObserverReturnsError(t *testing.T) {
+	obsReg := NewObserverRegistry()
+	cfg := &PipelineConfig{Name: "x", Observers: []string{"missing"}}
+	opts := &BuildOptions{ObserverRegistry: obsReg}
+	_, err := BuildObserver(cfg, opts)
+	if err == nil {
+		t.Fatal("expected error for unknown observer name")
+	}
+}
+
+// countingObserver increments *count on each hook call.
+type countingObserver struct{ count *int }
+
+func (c *countingObserver) BeforePipeline(ctx context.Context, runID, name string, payload interface{}) error {
+	*c.count++
+	return nil
+}
+func (c *countingObserver) AfterPipeline(ctx context.Context, runID string, result interface{}, err error) error {
+	*c.count++
+	return nil
+}
+func (c *countingObserver) BeforeStage(ctx context.Context, runID string, stageIndex int, input interface{}) error {
+	*c.count++
+	return nil
+}
+func (c *countingObserver) AfterStage(ctx context.Context, runID string, stageIndex int, input, output interface{}, stageErr error, duration time.Duration) error {
+	*c.count++
+	return nil
+}
+
 // mockObserver implements pipeline.Observer so RunWithInput has RunID and can park.
 type mockObserver struct{}
 

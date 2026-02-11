@@ -154,6 +154,8 @@ type Observer interface {
 }
 ```
 
+Use **MultiObserver(logObs, metricsObs, dbObs, ...)** to run multiple observers for the same run: each hook calls every observer in order; the first non-nil error is returned to the pipeline, but all observers are still invoked (so logging and metrics always run).
+
 - **BeforePipeline**: Called once per run; use it to create a run record (e.g. in DB).
 - **AfterPipeline**: Called when the pipeline finishes (success or error).
 - **BeforeStage** / **AfterStage**: Called for each stage. Use them to persist progress (e.g. stage index and output) so you can resume after a restart.

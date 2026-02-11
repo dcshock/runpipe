@@ -9,9 +9,10 @@ import (
 
 // PipelineConfig is the root structure for a pipeline definition (e.g. from YAML).
 type PipelineConfig struct {
-	Name   string     `yaml:"name"`
-	Source string     `yaml:"source"` // optional: name of a source registered in BuildOptions.SourceRegistry
-	Stages []StageRef `yaml:"stages"`
+	Name      string     `yaml:"name"`
+	Source    string     `yaml:"source"`    // optional: name of a source registered in BuildOptions.SourceRegistry
+	Observers []string   `yaml:"observers"` // optional: observer names registered in BuildOptions.ObserverRegistry; combined with pipeline.MultiObserver
+	Stages    []StageRef `yaml:"stages"`
 }
 
 // StageRef is a single stage entry: either a plain name or name + options.

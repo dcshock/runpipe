@@ -8,7 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// BuildOptions configures how a pipeline is built from config (e.g. retry persist, source).
+// BuildOptions configures how a pipeline is built from config (e.g. retry persist, source, observers).
 type BuildOptions struct {
 	// RetryPersist is used when a stage has retry (exponential or fixed). Required if any stage uses retry.
 	RetryPersist pipeline.ParkPersistWithTime
@@ -18,6 +18,9 @@ type BuildOptions struct {
 
 	// SourceRegistry is used when PipelineConfig.Source is set. The built pipeline's Source is set to the registered function.
 	SourceRegistry *SourceRegistry
+
+	// ObserverRegistry is used when PipelineConfig.Observers is set. BuildObserver returns pipeline.MultiObserver of the looked-up observers.
+	ObserverRegistry *ObserverRegistry
 }
 
 // BuildPipeline builds a pipeline.Pipeline from config and registry. Stage names in config must be registered.
@@ -58,6 +61,26 @@ func setSource(p *pipeline.Pipeline, cfg *PipelineConfig, opts *BuildOptions) {
 	if src, ok := opts.SourceRegistry.Get(cfg.Source); ok {
 		p.Source = src
 	}
+}
+
+// BuildObserver returns a pipeline.Observer for the config's Observers list by looking up each name
+// in BuildOptions.ObserverRegistry and combining them with pipeline.MultiObserver. Use it when
+// running a config-built pipeline so the run uses the observers specified in YAML.
+// If cfg.Observers is empty or opts.ObserverRegistry is nil, returns (nil, nil); the caller
+// can pass their own observer in RunOptions. If any observer name is not registered, returns an error.
+func BuildObserver(cfg *PipelineConfig, opts *BuildOptions) (pipeline.Observer, error) {
+	if cfg == nil || len(cfg.Observers) == 0 || opts == nil || opts.ObserverRegistry == nil {
+		return nil, nil
+	}
+	list := make([]pipeline.Observer, 0, len(cfg.Observers))
+	for i, name := range cfg.Observers {
+		obs, ok := opts.ObserverRegistry.Get(name)
+		if !ok {
+			return nil, fmt.Errorf("observer %d: %q not in registry", i, name)
+		}
+		list = append(list, obs)
+	}
+	return pipeline.MultiObserver(list...), nil
 }
 
 func wrapStage(s pipeline.Stage, ref StageRef, opts *BuildOptions) (pipeline.Stage, error) {

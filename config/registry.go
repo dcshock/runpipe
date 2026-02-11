@@ -87,3 +87,34 @@ func (r *SourceRegistry) Get(name string) (func(context.Context) (interface{}, e
 	s, ok := r.sources[name]
 	return s, ok
 }
+
+// ObserverRegistry maps observer names to pipeline.Observer. Safe for concurrent use.
+// Use with PipelineConfig.Observers and BuildOptions.ObserverRegistry so config can reference
+// multiple observers by name; BuildObserver returns pipeline.MultiObserver of the looked-up observers.
+type ObserverRegistry struct {
+	mu        sync.RWMutex
+	observers map[string]pipeline.Observer
+}
+
+// NewObserverRegistry returns an empty observer registry.
+func NewObserverRegistry() *ObserverRegistry {
+	return &ObserverRegistry{observers: make(map[string]pipeline.Observer)}
+}
+
+// Register adds an observer under the given name. Overwrites any existing registration.
+func (r *ObserverRegistry) Register(name string, obs pipeline.Observer) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.observers == nil {
+		r.observers = make(map[string]pipeline.Observer)
+	}
+	r.observers[name] = obs
+}
+
+// Get returns the observer for name, or nil and false if not found.
+func (r *ObserverRegistry) Get(name string) (pipeline.Observer, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	o, ok := r.observers[name]
+	return o, ok
+}

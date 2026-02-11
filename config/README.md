@@ -58,6 +58,36 @@ p, err := config.BuildPipeline(reg, cfg, opts)
 // p.Source is set to myQueuePollerFunc
 ```
 
+### Multiple observers
+
+You can attach multiple observers (e.g. logging, metrics, DB) to a pipeline by listing observer names in **observers**. They are combined with **pipeline.MultiObserver** so all run for each hook:
+
+```yaml
+name: my-pipeline
+observers: [logging, metrics, db]
+stages: [fetch, parse, validate]
+```
+
+Register each observer in an **ObserverRegistry** and pass it in **BuildOptions.ObserverRegistry**. Use **BuildObserver** to get the combined observer for a config, then pass it at run time:
+
+```go
+obsReg := config.NewObserverRegistry()
+obsReg.Register("logging", myLoggingObserver)
+obsReg.Register("metrics", myMetricsObserver)
+obsReg.Register("db", observer.NewDBObserver(queries, ...))
+opts := &config.BuildOptions{ObserverRegistry: obsReg}
+p, err := config.BuildPipeline(reg, cfg, opts)
+obs, err := config.BuildObserver(cfg, opts)
+if err != nil { ... }
+runOpts := &pipeline.RunOptions{}
+if obs != nil {
+    runOpts.Observer = obs
+}
+result, err := p.RunWithInput(ctx, payload, runOpts)
+```
+
+If **observers** is omitted or **ObserverRegistry** is nil, **BuildObserver** returns `(nil, nil)`; use your own observer in **RunOptions** if needed.
+
 ### Multi-pipeline YAML
 
 One file can define multiple pipelines under a top-level `pipelines` map:

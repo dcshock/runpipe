@@ -97,6 +97,43 @@ func TestPipeline_RunWithInput_WithObserverAndRunID(t *testing.T) {
 	}
 }
 
+func TestMultiObserver(t *testing.T) {
+	ctx := context.Background()
+	var logCalls, metricsCalls []string
+	logObs := &hookObserver{
+		beforePipeline: func(ctx context.Context, runID, name string, payload interface{}) error {
+			logCalls = append(logCalls, "log:BeforePipeline")
+			return nil
+		},
+		afterStage: func(ctx context.Context, runID string, stageIndex int, input, output interface{}, stageErr error, d time.Duration) error {
+			logCalls = append(logCalls, "log:AfterStage")
+			return nil
+		},
+	}
+	metricsObs := &hookObserver{
+		beforePipeline: func(ctx context.Context, runID, name string, payload interface{}) error {
+			metricsCalls = append(metricsCalls, "metrics:BeforePipeline")
+			return nil
+		},
+		afterStage: func(ctx context.Context, runID string, stageIndex int, input, output interface{}, stageErr error, d time.Duration) error {
+			metricsCalls = append(metricsCalls, "metrics:AfterStage")
+			return nil
+		},
+	}
+	multi := MultiObserver(logObs, metricsObs)
+	p := &Pipeline{Name: "m", Stages: []Stage{Identity(), Identity()}}
+	_, err := p.RunWithInput(ctx, 1, &RunOptions{Observer: multi})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(logCalls) != 3 {
+		t.Errorf("log observer: got %d calls, want 3: %v", len(logCalls), logCalls)
+	}
+	if len(metricsCalls) != 3 {
+		t.Errorf("metrics observer: got %d calls, want 3: %v", len(metricsCalls), metricsCalls)
+	}
+}
+
 func TestPipeline_Run_WithSource(t *testing.T) {
 	ctx := context.Background()
 	called := false
