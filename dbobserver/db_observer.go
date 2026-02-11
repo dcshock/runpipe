@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dcshock/runpipe/dbobserver/internal/db/repository"
+	"github.com/dcshock/runpipe/dbobserver/repository"
 	"github.com/dcshock/runpipe/pipeline"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -23,13 +23,14 @@ func NewDBObserver(queries *repository.Queries) *DBObserver {
 	return &DBObserver{queries: queries}
 }
 
-// BeforePipeline implements pipeline.Observer. Inserts a pipeline_run row with status 'running'.
+// BeforePipeline implements pipeline.Observer. Inserts or updates a pipeline_run row with status 'running'.
+// Uses upsert so the same run can be observed when resuming (same run_id).
 func (o *DBObserver) BeforePipeline(ctx context.Context, runID, name string, payload interface{}) error {
 	payloadJSON, err := marshalOptional(payload)
 	if err != nil {
 		return fmt.Errorf("marshal payload: %w", err)
 	}
-	return o.queries.InsertPipelineRun(ctx, repository.InsertPipelineRunParams{
+	return o.queries.UpsertPipelineRun(ctx, repository.UpsertPipelineRunParams{
 		RunID:   runID,
 		Name:    name,
 		Payload: payloadJSON,

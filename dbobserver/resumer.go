@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/dcshock/runpipe/dbobserver/internal/db/repository"
+	"github.com/dcshock/runpipe/dbobserver/repository"
 	"github.com/dcshock/runpipe/pipeline"
 )
 

@@ -2,6 +2,11 @@
 INSERT INTO pipeline_run (run_id, name, payload, status)
 VALUES ($1, $2, $3, 'running');
 
+-- name: UpsertPipelineRun :exec
+INSERT INTO pipeline_run (run_id, name, payload, status)
+VALUES ($1, $2, $3, 'running')
+ON CONFLICT (run_id) DO UPDATE SET status = 'running', updated_at = now();
+
 -- name: UpdatePipelineRunComplete :exec
 UPDATE pipeline_run
 SET status = $2, result = $3, error = $4, updated_at = now()

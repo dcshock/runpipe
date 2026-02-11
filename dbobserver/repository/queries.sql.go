@@ -173,3 +173,20 @@ func (q *Queries) UpsertPipelineParkedRun(ctx context.Context, arg UpsertPipelin
 	)
 	return err
 }
+
+const upsertPipelineRun = `-- name: UpsertPipelineRun :exec
+INSERT INTO pipeline_run (run_id, name, payload, status)
+VALUES ($1, $2, $3, 'running')
+ON CONFLICT (run_id) DO UPDATE SET status = 'running', updated_at = now()
+`
+
+type UpsertPipelineRunParams struct {
+	RunID   string `json:"run_id"`
+	Name    string `json:"name"`
+	Payload []byte `json:"payload"`
+}
+
+func (q *Queries) UpsertPipelineRun(ctx context.Context, arg UpsertPipelineRunParams) error {
+	_, err := q.db.Exec(ctx, upsertPipelineRun, arg.RunID, arg.Name, arg.Payload)
+	return err
+}

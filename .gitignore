@@ -3,6 +3,7 @@
 #
 # Binaries for programs and plugins
 *.exe
+examples/with-db/with-db
 *.exe~
 *.dll
 *.so
