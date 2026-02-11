@@ -1,7 +1,7 @@
 # runpipe - Makefile
 # Go module: github.com/dcshock/runpipe
 
-.PHONY: build clean test fmt lint deps help
+.PHONY: build clean test fmt lint deps sqlc-generate help
 
 # Default target
 all: build
@@ -31,6 +31,10 @@ fmt:
 lint:
 	go vet ./...
 
+# Generate sqlc code for dbobserver (requires sqlc: go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest)
+sqlc-generate:
+	cd dbobserver && sqlc generate
+
 # Tidy and verify dependencies
 deps:
 	go mod tidy
@@ -53,5 +57,6 @@ help:
 	@echo "  fmt           - go fmt ./..."
 	@echo "  lint          - go vet ./..."
 	@echo "  deps          - go mod tidy && go mod verify"
+	@echo "  sqlc-generate - regenerate internal/db/repository from schema and queries"
 	@echo "  clean         - remove cache and coverage artifacts"
 	@echo "  help          - show this help"
