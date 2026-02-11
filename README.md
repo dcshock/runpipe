@@ -17,10 +17,11 @@ Runpipe is a Go library for building **single-value pipelines**: linear chains o
 go get github.com/dcshock/runpipe
 ```
 
-Optional DB-backed observer (Postgres):
+Optional packages:
 
 ```bash
-go get github.com/dcshock/runpipe/observer
+go get github.com/dcshock/runpipe/observer   # Postgres observer, park, resume
+go get github.com/dcshock/runpipe/config     # Stage registry + YAML pipeline config
 ```
 
 ## Quick example
@@ -58,6 +59,7 @@ func main() {
 
 - **pipeline/** — Core pipeline, stages, retry, park; no DB dependency.
 - **observer/** — Optional Postgres observer (DBObserver, ParkedRunStore, Resumer); uses sqlc and pgx.
+- **config/** — Optional stage registry and human-readable pipeline config (YAML); stages by name with `retry: exponential`, `timeout: 60s`, etc.
 - **examples/with-db/** — Example pipeline with stdlib stages, DBObserver, park, and resume; tests use testcontainers Postgres.
 
 ## Tests

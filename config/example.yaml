@@ -1,0 +1,16 @@
+# Example pipeline config: human-readable stages with optional retry and timeout.
+# Register stages by these names, then build with config.BuildPipeline(registry, cfg, opts).
+name: ingest-and-validate
+stages:
+  - fetch          # plain stage name
+  - name: parse
+    retry: exponential
+    timeout: 60s
+    initial: 5s
+    multiplier: 2
+    cap: 5m
+    max_attempts: 5
+  - name: validate
+    retry: fixed
+    initial: 10s
+  - persist

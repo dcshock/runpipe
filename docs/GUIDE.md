@@ -278,6 +278,30 @@ See **pipeline/stages.go** and **pipeline/stages_test.go** for details.
 
 ---
 
+## Human-readable config (config package)
+
+The optional **config** module provides a **stage registry** and **YAML pipeline config** so you can define pipelines by stage name and options instead of Go code:
+
+```yaml
+name: my-pipeline
+stages:
+  - fetch
+  - name: parse
+    retry: exponential
+    timeout: 60s
+    initial: 5s
+    max_attempts: 5
+  - validate
+```
+
+- Register stages with `registry.Register("fetch", fetchStage)` etc.
+- Parse YAML with `config.ParsePipelineConfig(data)`.
+- Build with `config.BuildPipeline(registry, cfg, opts)`; set `opts.RetryPersist` when any stage has `retry`.
+
+See **config/README.md** and **config/example.yaml**.
+
+---
+
 ## Complete examples
 
 ### Minimal pipeline (no observer)
