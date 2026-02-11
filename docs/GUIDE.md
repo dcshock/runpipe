@@ -14,7 +14,10 @@ This guide explains how to implement pipelines, stages, observers, park/resume, 
 6. [Retry and exponential backoff](#retry-and-exponential-backoff)
 7. [Sequences](#sequences)
 8. [Stdlib stages](#stdlib-stages)
-9. [Complete examples](#complete-examples)
+9. [Human-readable config (config package)](#human-readable-config-config-package)
+10. [Complete examples](#complete-examples)
+11. [Production considerations](#production-considerations)
+12. [Testing](#testing)
 
 ---
 
@@ -382,6 +385,48 @@ result, err := remaining.RunWithInput(ctx, saved.InputForNextStage, &pipeline.Ru
     StageOffset: saved.NextStageIndex,
 })
 ```
+
+---
+
+## Production considerations
+
+These points help run runpipe in production; the library leaves policy and infrastructure to you.
+
+### Observability
+
+- **Logging**: Implement **Observer** (BeforePipeline, AfterPipeline, BeforeStage, AfterStage) and log run ID, pipeline name, stage index, duration, and errors. Use a structured logger and include `run_id` for correlation.
+- **Metrics**: In the same Observer, record stage duration, success/failure counts, and (if using park) parked-run count. Export to Prometheus or your metrics system. The library does not define a metrics interface.
+- **Tracing**: Pass a **context** that carries a trace span; stages can start child spans. The pipeline does not create spans itself.
+
+### Timeouts and cancellation
+
+- **Per-stage timeout**: Use **WithTimeout(stage, timeout)** or the config `timeout: 60s` so a single stage cannot run forever.
+- **Full-run timeout**: Pass a context with a deadline from the caller (e.g. `ctx, cancel := context.WithTimeout(parent, 10*time.Minute)`). The pipeline does not set an overall deadline; cancellation propagates to stages that respect `ctx.Done()`.
+
+### Scaling and concurrency
+
+- **One run at a time per pipeline call**: `Run` / `RunWithInput` are synchronous. To process many payloads, run multiple workers (goroutines or processes) that pull work from a queue or trigger pipeline runs.
+- **Resume job**: Run **Resumer.RunDue** on a schedule (e.g. every minute) or as a dedicated worker. Use a single worker or distributed locking if you must avoid duplicate resume of the same run.
+
+### Parked run lifecycle
+
+- **Retry limit**: **MaxAttempts** is not enforced by the pipeline. In your **RetryPersist** (or in the observer’s persist path), track attempt count per `run_id` and refuse to persist (or mark the run as failed) after N attempts so you do not retry forever.
+- **Cleanup**: Parked runs that are never resumed (e.g. abandoned or bad payload) will stay in the DB. Add a job that deletes or archives rows older than a retention period, or marks them failed after a TTL. The observer package does not provide this.
+
+### Graceful shutdown
+
+- **Context cancellation**: When shutting down, cancel the context passed to `Run` / `RunWithInput` / `Resumer.RunDue`. In-flight runs will see `ctx.Done()` and can exit; stages should check the context and return quickly.
+- **Drain**: The library does not “drain” in-flight runs. To drain, stop accepting new work and wait for existing pipeline calls to return (with timeout), then exit.
+
+### Config and validation
+
+- **BuildPipeline** fails if a stage name is missing from the registry. For multi-pipeline YAML, **BuildAllSequences** fails if a sequence references a pipeline that was not built. Validate config at startup before accepting traffic.
+
+### Out of scope
+
+- **Secrets**: Do not put secrets in YAML; inject them via the registry (e.g. stages that close over config) or environment.
+- **Auth / RBAC**: Authorization is the responsibility of the application that invokes the pipeline.
+- **Queue / transport**: The library does not include a message queue; use your own (e.g. SQS, Kafka, DB poll) to feed payloads and to trigger resume.
 
 ---
 
