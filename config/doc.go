@@ -14,6 +14,7 @@
 //	      max_attempts: 5
 //	    - validate
 //
-// Build a pipeline with BuildPipeline(registry, config, opts). Use BuildOptions.RetryPersist
-// when any stage has retry (e.g. from observer.ParkedRunStore.PersistFunc()).
+// Build a pipeline with BuildPipeline(registry, config, opts). When any stage has retry,
+// set BuildOptions.RetryPersist (e.g. observer.NewParkedRunStore(queries).PersistFunc()
+// for Postgres). See config/README.md for how to enable RetryPersist.
 package config
