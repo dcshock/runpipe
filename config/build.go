@@ -124,6 +124,42 @@ func BuildAllPipelines(reg *Registry, multi *MultiPipelineConfig, opts *BuildOpt
 	return out, nil
 }
 
+// BuildSequence builds a pipeline.Sequence from a sequence config by looking up the named pipelines
+// in the built pipeline map. Each name in seq.Pipelines must exist in builtPipelines.
+func BuildSequence(seq *SequenceConfig, builtPipelines map[string]*pipeline.Pipeline) (*pipeline.Sequence, error) {
+	if seq == nil {
+		return nil, fmt.Errorf("SequenceConfig is nil")
+	}
+	out := make([]*pipeline.Pipeline, 0, len(seq.Pipelines))
+	for i, name := range seq.Pipelines {
+		p, ok := builtPipelines[name]
+		if !ok {
+			return nil, fmt.Errorf("sequence %q pipeline %d: %q not in built pipelines", seq.Name, i, name)
+		}
+		out = append(out, p)
+	}
+	return &pipeline.Sequence{Name: seq.Name, Pipelines: out}, nil
+}
+
+// BuildAllSequences builds a pipeline.Sequence for each entry in multi.Sequences using the given built pipelines.
+func BuildAllSequences(multi *MultiPipelineConfig, builtPipelines map[string]*pipeline.Pipeline) (map[string]*pipeline.Sequence, error) {
+	if multi == nil || len(multi.Sequences) == 0 {
+		return map[string]*pipeline.Sequence{}, nil
+	}
+	out := make(map[string]*pipeline.Sequence, len(multi.Sequences))
+	for name, cfg := range multi.Sequences {
+		if cfg.Name == "" {
+			cfg.Name = name
+		}
+		seq, err := BuildSequence(&cfg, builtPipelines)
+		if err != nil {
+			return nil, fmt.Errorf("sequence %q: %w", name, err)
+		}
+		out[name] = seq
+	}
+	return out, nil
+}
+
 // PipelineConfigFromMap parses a single pipeline from a map (e.g. one key in a multi-pipeline YAML).
 // The key is the pipeline name; the value is the stages list.
 func PipelineConfigFromMap(name string, stages interface{}) (*PipelineConfig, error) {

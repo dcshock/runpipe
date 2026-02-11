@@ -83,6 +83,38 @@ if err != nil { ... }
 
 If a pipeline entry omits `name`, the map key is used as the pipeline name.
 
+### Sequences
+
+A **sequence** runs multiple pipelines in order with the same payload (each pipeline receives the same input). Add a top-level `sequences` map: each entry has a `name` and an ordered list of pipeline names (`pipelines`) that must exist in the `pipelines` map.
+
+```yaml
+pipelines:
+  ingest:
+    name: ingest
+    stages: [fetch, parse]
+  notify:
+    name: notify
+    stages: [validate, send]
+
+sequences:
+  ingest-then-notify:
+    name: ingest-then-notify
+    pipelines: [ingest, notify]
+```
+
+Build pipelines first, then build sequences from the built pipeline map:
+
+```go
+multi, err := config.ParseMultiPipelineConfig(yamlBytes)
+if err != nil { ... }
+pipelines, err := config.BuildAllPipelines(reg, multi, opts)
+if err != nil { ... }
+sequences, err := config.BuildAllSequences(multi, pipelines)
+if err != nil { ... }
+// sequences["ingest-then-notify"] is a *pipeline.Sequence
+result, err := sequences["ingest-then-notify"].Run(ctx, payload, opts)
+```
+
 ## Building a pipeline
 
 ```go

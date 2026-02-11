@@ -305,3 +305,50 @@ func (m *mockObserver) BeforeStage(ctx context.Context, runID string, stageIndex
 func (m *mockObserver) AfterStage(ctx context.Context, runID string, stageIndex int, input, output interface{}, stageErr error, duration time.Duration) error {
 	return nil
 }
+
+func TestBuildSequence(t *testing.T) {
+	reg := NewRegistry()
+	reg.Register("id", pipeline.Identity())
+	double := pipeline.Transform(func(ctx context.Context, n int) (int, error) { return n * 2, nil })
+	reg.Register("double", double)
+
+	multi, err := ParseMultiPipelineConfig([]byte(`
+pipelines:
+  first:
+    name: first
+    stages: [id]
+  second:
+    name: second
+    stages: [double]
+sequences:
+  both:
+    name: both
+    pipelines: [first, second]
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	built, err := BuildAllPipelines(reg, multi, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sequences, err := BuildAllSequences(multi, built)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sequences) != 1 {
+		t.Fatalf("got %d sequences", len(sequences))
+	}
+	seq := sequences["both"]
+	if seq == nil || seq.Name != "both" || len(seq.Pipelines) != 2 {
+		t.Fatalf("sequence: %+v", seq)
+	}
+	out, err := seq.Run(context.Background(), 10, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// first: 10 -> 10 (identity), second: 10 -> 20 (double); same payload to each, result is last
+	if out != 20 {
+		t.Errorf("expected 20, got %v", out)
+	}
+}

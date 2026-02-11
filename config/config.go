@@ -78,13 +78,21 @@ func ParsePipelineConfig(data []byte) (*PipelineConfig, error) {
 	return &cfg, nil
 }
 
-// MultiPipelineConfig is the root structure for a file that defines multiple pipelines.
-// Top-level key is "pipelines"; each value is a pipeline (name + stages).
-type MultiPipelineConfig struct {
-	Pipelines map[string]PipelineConfig `yaml:"pipelines"`
+// SequenceConfig defines an ordered list of pipelines (a pipeline.Sequence).
+// Each element is a pipeline name; the pipeline must exist in the same config's pipelines map.
+type SequenceConfig struct {
+	Name      string   `yaml:"name"`
+	Pipelines []string `yaml:"pipelines"` // ordered list of pipeline names
 }
 
-// ParseMultiPipelineConfig parses YAML bytes that contain a "pipelines" map from name to pipeline config.
+// MultiPipelineConfig is the root structure for a file that defines multiple pipelines and optional sequences.
+// Top-level keys: "pipelines" (name -> pipeline config), "sequences" (name -> sequence config).
+type MultiPipelineConfig struct {
+	Pipelines map[string]PipelineConfig `yaml:"pipelines"`
+	Sequences map[string]SequenceConfig `yaml:"sequences"`
+}
+
+// ParseMultiPipelineConfig parses YAML bytes that contain "pipelines" and optional "sequences".
 // Example YAML:
 //
 //	pipelines:
@@ -94,6 +102,10 @@ type MultiPipelineConfig struct {
 //	  notify:
 //	    name: notify
 //	    stages: [validate, send]
+//	sequences:
+//	  ingest-then-notify:
+//	    name: ingest-then-notify
+//	    pipelines: [ingest, notify]
 func ParseMultiPipelineConfig(data []byte) (*MultiPipelineConfig, error) {
 	var cfg MultiPipelineConfig
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
