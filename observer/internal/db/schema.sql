@@ -25,14 +25,24 @@ CREATE TABLE pipeline_run_stage (
 );
 
 -- Parked runs: persisted by ParkStageAfter / Retry; resumed when resume_at <= now.
+-- claimed_by/claimed_at: set when a resumer picks the run so only one pod processes it; cleared on re-park.
 CREATE TABLE pipeline_parked_run (
     run_id              TEXT PRIMARY KEY,
     pipeline_name       TEXT NOT NULL,
     next_stage_index    INT  NOT NULL,
     input_for_next_stage JSONB NOT NULL,
     resume_at           TIMESTAMPTZ NOT NULL,
+    claimed_by          TEXT,
+    claimed_at          TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX idx_pipeline_parked_run_resume_at ON pipeline_parked_run (resume_at);
+
+-- Retry attempt count per run_id for ExponentialBackoffPersist (max attempts enforcement).
+CREATE TABLE pipeline_retry_attempt (
+    run_id        TEXT PRIMARY KEY,
+    attempt_count INT NOT NULL DEFAULT 0,
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);

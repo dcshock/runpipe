@@ -11,13 +11,21 @@ import (
 )
 
 type PipelineParkedRun struct {
-	RunID             string    `json:"run_id"`
-	PipelineName      string    `json:"pipeline_name"`
-	NextStageIndex    int32     `json:"next_stage_index"`
-	InputForNextStage []byte    `json:"input_for_next_stage"`
-	ResumeAt          time.Time `json:"resume_at"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	RunID             string             `json:"run_id"`
+	PipelineName      string             `json:"pipeline_name"`
+	NextStageIndex    int32              `json:"next_stage_index"`
+	InputForNextStage []byte             `json:"input_for_next_stage"`
+	ResumeAt          time.Time          `json:"resume_at"`
+	ClaimedBy         pgtype.Text        `json:"claimed_by"`
+	ClaimedAt         pgtype.Timestamptz `json:"claimed_at"`
+	CreatedAt         time.Time          `json:"created_at"`
+	UpdatedAt         time.Time          `json:"updated_at"`
+}
+
+type PipelineRetryAttempt struct {
+	RunID        string    `json:"run_id"`
+	AttemptCount int32     `json:"attempt_count"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type PipelineRun struct {

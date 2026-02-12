@@ -12,6 +12,61 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const claimAndGetPipelineParkedRunsDue = `-- name: ClaimAndGetPipelineParkedRunsDue :many
+UPDATE pipeline_parked_run
+SET claimed_by = $1, claimed_at = now(), updated_at = now()
+WHERE run_id IN (
+    SELECT run_id FROM pipeline_parked_run
+    WHERE resume_at <= now()
+      AND (claimed_by IS NULL OR claimed_at < now() - interval '5 minutes')
+    ORDER BY resume_at
+    LIMIT $2
+    FOR UPDATE SKIP LOCKED
+)
+RETURNING run_id, pipeline_name, next_stage_index, input_for_next_stage, resume_at
+`
+
+type ClaimAndGetPipelineParkedRunsDueParams struct {
+	ClaimedBy pgtype.Text `json:"claimed_by"`
+	Limit     int32       `json:"limit"`
+}
+
+type ClaimAndGetPipelineParkedRunsDueRow struct {
+	RunID             string    `json:"run_id"`
+	PipelineName      string    `json:"pipeline_name"`
+	NextStageIndex    int32     `json:"next_stage_index"`
+	InputForNextStage []byte    `json:"input_for_next_stage"`
+	ResumeAt          time.Time `json:"resume_at"`
+}
+
+// Claims up to :limit rows (FOR UPDATE SKIP LOCKED) so only one resumer processes each run.
+// Stale claims (claimed_at older than 5 minutes) are treated as unclaimed.
+func (q *Queries) ClaimAndGetPipelineParkedRunsDue(ctx context.Context, arg ClaimAndGetPipelineParkedRunsDueParams) ([]ClaimAndGetPipelineParkedRunsDueRow, error) {
+	rows, err := q.db.Query(ctx, claimAndGetPipelineParkedRunsDue, arg.ClaimedBy, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ClaimAndGetPipelineParkedRunsDueRow
+	for rows.Next() {
+		var i ClaimAndGetPipelineParkedRunsDueRow
+		if err := rows.Scan(
+			&i.RunID,
+			&i.PipelineName,
+			&i.NextStageIndex,
+			&i.InputForNextStage,
+			&i.ResumeAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deletePipelineParkedRun = `-- name: DeletePipelineParkedRun :exec
 DELETE FROM pipeline_parked_run WHERE run_id = $1
 `
@@ -60,6 +115,17 @@ func (q *Queries) GetPipelineParkedRunsDueForResume(ctx context.Context) ([]GetP
 		return nil, err
 	}
 	return items, nil
+}
+
+const getRetryAttempt = `-- name: GetRetryAttempt :one
+SELECT attempt_count FROM pipeline_retry_attempt WHERE run_id = $1
+`
+
+func (q *Queries) GetRetryAttempt(ctx context.Context, runID string) (int32, error) {
+	row := q.db.QueryRow(ctx, getRetryAttempt, runID)
+	var attempt_count int32
+	err := row.Scan(&attempt_count)
+	return attempt_count, err
 }
 
 const insertPipelineRun = `-- name: InsertPipelineRun :exec
@@ -145,13 +211,15 @@ func (q *Queries) UpdatePipelineRunStage(ctx context.Context, arg UpdatePipeline
 }
 
 const upsertPipelineParkedRun = `-- name: UpsertPipelineParkedRun :exec
-INSERT INTO pipeline_parked_run (run_id, pipeline_name, next_stage_index, input_for_next_stage, resume_at, updated_at)
-VALUES ($1, $2, $3, $4, $5, now())
+INSERT INTO pipeline_parked_run (run_id, pipeline_name, next_stage_index, input_for_next_stage, resume_at, claimed_by, claimed_at, updated_at)
+VALUES ($1, $2, $3, $4, $5, NULL, NULL, now())
 ON CONFLICT (run_id) DO UPDATE SET
     pipeline_name = EXCLUDED.pipeline_name,
     next_stage_index = EXCLUDED.next_stage_index,
     input_for_next_stage = EXCLUDED.input_for_next_stage,
     resume_at = EXCLUDED.resume_at,
+    claimed_by = NULL,
+    claimed_at = NULL,
     updated_at = now()
 `
 
@@ -188,5 +256,21 @@ type UpsertPipelineRunParams struct {
 
 func (q *Queries) UpsertPipelineRun(ctx context.Context, arg UpsertPipelineRunParams) error {
 	_, err := q.db.Exec(ctx, upsertPipelineRun, arg.RunID, arg.Name, arg.Payload)
+	return err
+}
+
+const upsertRetryAttempt = `-- name: UpsertRetryAttempt :exec
+INSERT INTO pipeline_retry_attempt (run_id, attempt_count, updated_at)
+VALUES ($1, $2, now())
+ON CONFLICT (run_id) DO UPDATE SET attempt_count = EXCLUDED.attempt_count, updated_at = now()
+`
+
+type UpsertRetryAttemptParams struct {
+	RunID        string `json:"run_id"`
+	AttemptCount int32  `json:"attempt_count"`
+}
+
+func (q *Queries) UpsertRetryAttempt(ctx context.Context, arg UpsertRetryAttemptParams) error {
+	_, err := q.db.Exec(ctx, upsertRetryAttempt, arg.RunID, arg.AttemptCount)
 	return err
 }
